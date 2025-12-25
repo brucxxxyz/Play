@@ -2,11 +2,207 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>🧭 游玩选择器</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🧭 今日游玩选择器</title>
+
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", Arial;
+    background: #f7f7f7;
+    margin: 0;
+    padding: 16px;
+    color: #222;
+}
+
+h1 { font-size: 26px; margin-bottom: 6px; }
+.subtitle { color: #666; margin-bottom: 16px; }
+
+label { display:block; margin-top:8px; color:#555; }
+input {
+    width:100%; padding:12px; font-size:18px;
+    border-radius:10px; border:1px solid #ccc;
+}
+
+button {
+    width:100%; padding:14px; margin-top:12px;
+    font-size:18px; border:none; border-radius:12px;
+    background:#007aff; color:white;
+}
+
+.card {
+    background:white; border-radius:14px;
+    padding:16px; margin-top:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.05);
+}
+
+.item { font-size:17px; margin:6px 0; }
+.small { font-size:14px; color:#666; }
+
+.secondary { background:#e5e5ea; color:black; }
+.danger { background:#ff3b30; }
+</style>
 </head>
+
 <body>
-<h1>🧭 游玩选择器</h1>
-<p>如果你看到这个，说明 index.html 创建成功 🎉</p>
+
+<h1>🧭 今日游玩推荐</h1>
+<div class="subtitle">距离优先 · 不纠结 · 3 选 1</div>
+
+<label>👤 大名</label>
+<input id="name" placeholder="请输入你的名字">
+
+<label>📅 日期</label>
+<input id="date" type="date">
+
+<button onclick="generate()">🎯 生成游玩组合</button>
+
+<div id="options"></div>
+<div id="final"></div>
+
+<button class="secondary" onclick="showHistory()">📜 查看历史</button>
+<button class="danger" onclick="clearHistory()">🧹 清除历史</button>
+
+<script>
+// ========= 数据 =========
+const categories = {
+  "咖啡店": [
+    ["Dear Deer Coffee",-36.8890,174.9270],
+    ["Handpicked Coffee",-36.8736,174.7764],
+    ["Mezze Bar Coffee",-36.8702,174.7781],
+    ["Espresso Workshop",-36.8680,174.7770],
+    ["Remedy Coffee",-36.8477,174.7650],
+    ["Little Q Coffee",-36.8725,174.7752],
+  ],
+  "古董店": [
+    ["The Collectors",-36.8790,174.8120],
+    ["Vitrine",-36.8575,174.7778],
+    ["The Poi Room",-36.8618,174.7754],
+    ["Artisan Antiques",-36.8688,174.7722],
+    ["Old Charm Studio",-36.8710,174.7810],
+    ["Heritage Room",-36.8655,174.7790],
+  ],
+  "海滩": [
+    ["Mission Bay",-36.8489,174.8306],
+    ["St Heliers",-36.8485,174.8560],
+    ["Kohimarama",-36.8482,174.8418],
+    ["Ladies Bay",-36.8550,174.8285],
+    ["Okahu Bay",-36.8438,174.7972],
+    ["Judges Bay",-36.8471,174.8014],
+  ],
+  "家具店": [
+    ["Nood",-36.8712,174.7760],
+    ["Mocka Sylvia Park",-36.9175,174.8478],
+    ["Danske Mobler",-36.8793,174.8126],
+    ["Target Furniture",-36.9051,174.8532],
+    ["Freedom Furniture",-36.8844,174.8460],
+    ["Urban Sales",-36.8720,174.7769],
+  ],
+  "中式甜品": [
+    ["Aroma Dessert",-36.8899,174.7577],
+    ["EVERSWEET",-36.8869,174.9271],
+    ["Spoonful 一口甜",-36.8980,174.9500],
+    ["Soul Sweet",-36.8904,174.8679],
+    ["Little Sweet Corner",-36.8820,174.8450],
+    ["Oriental Sugar House",-36.8785,174.8300],
+  ],
+  "中式奶茶/果茶": [
+    ["Tea Talk Sylvia",-36.9104,174.8619],
+    ["Tea Talk Newmarket",-36.8715,174.7773],
+    ["NOMI Botany",-36.8859,174.9456],
+    ["ChaBliss",-36.8650,174.7769],
+    ["Teadee",-36.8732,174.7762],
+    ["Hokey Pokey Tea",-36.8929,174.7994],
+  ]
+};
+
+// ========= 距离 =========
+function haversine(a,b,c,d){
+    const R=6371;
+    const p=Math.PI/180;
+    const dlat=(c-a)*p, dlon=(d-b)*p;
+    const x=Math.sin(dlat/2)**2+
+        Math.cos(a*p)*Math.cos(c*p)*Math.sin(dlon/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+
+function comboDistance(points){
+    let d=0;
+    for(let i=0;i<points.length;i++)
+        for(let j=i+1;j<points.length;j++)
+            d+=haversine(
+              points[i][1],points[i][2],
+              points[j][1],points[j][2]
+            );
+    return d.toFixed(2);
+}
+
+// ========= 生成 =========
+function generate(){
+    const name=document.getElementById("name").value.trim();
+    if(!name){ alert("请先输入名字"); return; }
+
+    const box=document.getElementById("options");
+    box.innerHTML="⏳ 正在计算最优路线...";
+
+    setTimeout(()=>{
+        box.innerHTML="";
+        const cats=Object.keys(categories);
+
+        for(let i=0;i<3;i++){
+            const chosen=[];
+            while(chosen.length<3){
+                const c=cats[Math.floor(Math.random()*cats.length)];
+                if(!chosen.find(x=>x.cat===c)){
+                    const item=categories[c][Math.floor(Math.random()*6)];
+                    chosen.push({cat:c,item});
+                }
+            }
+
+            const dist=comboDistance(chosen.map(x=>x.item));
+            const card=document.createElement("div");
+            card.className="card";
+            card.innerHTML=`
+              <h3>方案 ${i+1}</h3>
+              ${chosen.map(x=>`<div class="item">📍 ${x.item[0]}（${x.cat}）</div>`).join("")}
+              <div class="small">🚗 总距离约 ${dist} km</div>
+              <button onclick='choose(${JSON.stringify(chosen)}, "${dist}")'>选这个</button>
+            `;
+            box.appendChild(card);
+        }
+    },3000);
+}
+
+function choose(list,dist){
+    const history=JSON.parse(localStorage.getItem("playHistory")||"[]");
+    history.push({date:new Date().toLocaleDateString(), list, dist});
+    localStorage.setItem("playHistory",JSON.stringify(history));
+
+    document.getElementById("options").innerHTML="";
+    document.getElementById("final").innerHTML=`
+      <div class="card">
+        <h2>✅ 今日游玩</h2>
+        ${list.map(x=>`<div class="item">📍 ${x.item[0]}（${x.cat}）</div>`).join("")}
+        <div class="small">🚗 总距离 ${dist} km</div>
+      </div>
+    `;
+}
+
+function showHistory(){
+    const h=JSON.parse(localStorage.getItem("playHistory")||"[]");
+    if(!h.length){ alert("暂无历史"); return; }
+    alert(h.map(x=>`${x.date}\n${x.list.map(i=>i.item[0]).join(" → ")}`).join("\n\n"));
+}
+
+function clearHistory(){
+    if(confirm("确定清空游玩历史？")){
+        localStorage.removeItem("playHistory");
+        alert("已清空");
+    }
+}
+
+document.getElementById("date").value=
+    new Date().toISOString().slice(0,10);
+</script>
+
 </body>
 </html>
