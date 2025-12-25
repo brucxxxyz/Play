@@ -1,26 +1,21 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎯 今日游玩推荐</title>
 
 <style>
 body {
     font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", Arial;
-    background: #f7f7f7;
-    margin: 0;
-    padding: 16px;
-    color: #222;
+    background:#f7f7f7;
+    margin:0;
+    padding:16px;
 }
-h1 { font-size: 26px; margin-bottom: 6px; }
+h1 { font-size:26px; margin-bottom:6px; }
 .subtitle { color:#666; margin-bottom:16px; }
 
-label {
-    display:block;
-    margin-top:8px;
-    color:#555;
-}
+label { display:block; margin-top:8px; color:#555; }
 input {
     width:100%;
     padding:12px;
@@ -31,21 +26,16 @@ input {
 
 button {
     width:100%;
-    margin-top:10px;
     padding:14px;
+    margin-top:10px;
     font-size:18px;
     border:none;
     border-radius:12px;
     background:#007aff;
     color:#fff;
 }
-button.secondary {
-    background:#e5e5ea;
-    color:#000;
-}
-button.danger {
-    background:#ff3b30;
-}
+button.secondary { background:#e5e5ea; color:#000; }
+button.danger { background:#ff3b30; }
 
 .card {
     background:#fff;
@@ -55,20 +45,20 @@ button.danger {
     box-shadow:0 2px 8px rgba(0,0,0,0.05);
 }
 .item { font-size:18px; margin:6px 0; }
-.small { font-size:14px; color:#666; }
+.small { font-size:15px; color:#666; }
 </style>
 </head>
 
 <body>
 
 <h1>🎯 今日游玩推荐</h1>
-<div class="subtitle">不纠结 · 距离友好 · 直接选</div>
+<div class="subtitle">距离友好 · 不纠结 · 直接选</div>
 
 <label>👤 大名</label>
-<input id="name" placeholder="请输入名字" />
+<input id="name" placeholder="请输入名字">
 
 <label>📅 日期</label>
-<input id="date" type="date" />
+<input id="date" type="date">
 
 <button onclick="generate()">🎲 推荐游玩</button>
 
@@ -80,20 +70,54 @@ button.danger {
 <button class="danger" onclick="clearHistory()">🧹 清除历史</button>
 
 <script>
-// ===== 示例游玩数据（可替换为你的完整数据）=====
+// ===== 地点数据（示例，可继续扩充）=====
 const places = [
-    "咖啡店 ☕", "海滩 🌊", "古董店 🪑",
-    "家具店 🛋️", "甜品店 🍰", "奶茶店 🧋"
+    {name:"咖啡店 ☕", lat:-36.85, lon:174.76},
+    {name:"海滩 🌊", lat:-36.84, lon:174.83},
+    {name:"古董店 🪑", lat:-36.87, lon:174.78},
+    {name:"家具店 🛋️", lat:-36.90, lon:174.85},
+    {name:"甜品店 🍰", lat:-36.88, lon:174.80},
+    {name:"奶茶店 🧋", lat:-36.89, lon:174.82}
 ];
 
+// ===== 距离算法（JS 版 haversine）=====
+function haversine(a, b){
+    const R = 6371;
+    const dLat = (b.lat - a.lat) * Math.PI / 180;
+    const dLon = (b.lon - a.lon) * Math.PI / 180;
+    const lat1 = a.lat * Math.PI / 180;
+    const lat2 = b.lat * Math.PI / 180;
+
+    const x = Math.sin(dLat/2)**2 +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(dLon/2)**2;
+
+    return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
+}
+
+function totalDistance(list){
+    let d = 0;
+    for(let i=0;i<list.length;i++){
+        for(let j=i+1;j<list.length;j++){
+            d += haversine(list[i], list[j]);
+        }
+    }
+    return d.toFixed(2);
+}
+
 function rand(arr){
-    return arr[Math.floor(Math.random() * arr.length)];
+    return arr[Math.floor(Math.random()*arr.length)];
 }
 
-function makePlay(){
-    return [rand(places), rand(places), rand(places)];
+function makePlan(){
+    const plan = [rand(places), rand(places), rand(places)];
+    return {
+        plan,
+        distance: totalDistance(plan)
+    };
 }
 
+// ===== 生成方案 =====
 function generate(){
     const name = document.getElementById("name").value.trim();
     const date = document.getElementById("date").value;
@@ -103,43 +127,45 @@ function generate(){
     document.getElementById("final").innerHTML = "";
     document.getElementById("historyBox").innerHTML = "";
 
-    setTimeout(() => {
+    setTimeout(()=>{
         const box = document.getElementById("options");
         box.innerHTML = "";
         for(let i=0;i<3;i++){
-            const plan = makePlay();
-            const card = document.createElement("div");
-            card.className = "card";
-            card.innerHTML = `
+            const r = makePlan();
+            const c = document.createElement("div");
+            c.className="card";
+            c.innerHTML = `
                 <h3>方案 ${i+1}</h3>
-                <div class="item">📍 ${plan[0]}</div>
-                <div class="item">📍 ${plan[1]}</div>
-                <div class="item">📍 ${plan[2]}</div>
-                <button onclick='choose(${JSON.stringify(plan)}, "${name}", "${date}")'>
-                    选择这个
-                </button>
+                <div class="item">📍 ${r.plan[0].name}</div>
+                <div class="item">📍 ${r.plan[1].name}</div>
+                <div class="item">📍 ${r.plan[2].name}</div>
+                <div class="small">📏 总距离 ${r.distance} km</div>
+                <button onclick='choose(${JSON.stringify(r)}, "${name}", "${date}")'>选择这个</button>
             `;
-            box.appendChild(card);
+            box.appendChild(c);
         }
     }, 3000);
 }
 
-function choose(plan, name, date){
+// ===== 选择并保存 =====
+function choose(result, name, date){
     const history = JSON.parse(localStorage.getItem("playHistory") || "[]");
-    history.push({ name, date, plan });
+    history.push({name, date, ...result});
     localStorage.setItem("playHistory", JSON.stringify(history));
 
     document.getElementById("options").innerHTML = "";
     document.getElementById("final").innerHTML = `
         <div class="card">
             <h2>✅ 今日游玩</h2>
-            <div class="item">📍 ${plan[0]}</div>
-            <div class="item">📍 ${plan[1]}</div>
-            <div class="item">📍 ${plan[2]}</div>
+            <div class="item">📍 ${result.plan[0].name}</div>
+            <div class="item">📍 ${result.plan[1].name}</div>
+            <div class="item">📍 ${result.plan[2].name}</div>
+            <div class="small">📏 总距离 ${result.distance} km</div>
         </div>
     `;
 }
 
+// ===== 页面显示历史 =====
 function showHistory(){
     const box = document.getElementById("historyBox");
     const history = JSON.parse(localStorage.getItem("playHistory") || "[]");
@@ -150,18 +176,20 @@ function showHistory(){
         return;
     }
 
-    history.forEach(h => {
+    history.forEach(h=>{
         box.innerHTML += `
             <div class="card">
                 <div class="item"><strong>${h.date}</strong> · ${h.name}</div>
-                <div class="item">📍 ${h.plan[0]}</div>
-                <div class="item">📍 ${h.plan[1]}</div>
-                <div class="item">📍 ${h.plan[2]}</div>
+                <div class="item">📍 ${h.plan[0].name}</div>
+                <div class="item">📍 ${h.plan[1].name}</div>
+                <div class="item">📍 ${h.plan[2].name}</div>
+                <div class="small">📏 总距离 ${h.distance} km</div>
             </div>
         `;
     });
 }
 
+// ===== 清除历史 =====
 function clearHistory(){
     if(confirm("确定清除所有游玩历史吗？")){
         localStorage.removeItem("playHistory");
@@ -170,10 +198,20 @@ function clearHistory(){
     }
 }
 
-// 默认今天
+// 默认日期
 document.getElementById("date").value =
     new Date().toISOString().slice(0,10);
 </script>
+
+<footer style="
+    margin-top:40px;
+    text-align:center;
+    font-size:14px;
+    color:#999;
+    padding-bottom:20px;
+">
+    Designed by BY
+</footer>
 
 </body>
 </html>
