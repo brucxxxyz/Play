@@ -58,4 +58,4 @@ No framework. No server.
 
 ---
 
-**Designed by BY**
+Designed by BY
